@@ -179,27 +179,39 @@ public class MediaFireClient {
 	/**
 	 * List all the files in the root directory. Returns a Map<FileName, QuickKey> that is useful
 	 * for finding the quickkey for a specific filename.
+	 * Mediafire reports files in blocks, requiring multiple queries to return them all.
 	 * 
 	 * @return
 	 * @throws Exception
 	 */
 	public Map<String, String> listFiles() throws Exception
 	{
-		String targetURL = HTTP_MEDIAFIRE_BASE_API + "folder/get_content.php?session_token=" + SessionToken + "&content_type=files";
-
-		//send get request, and parse file entries
-		Document XMLDoc = httpGet(targetURL);
-		NodeList fileNames = XMLDoc.getElementsByTagName("filename");
-		NodeList quickKeys = XMLDoc.getElementsByTagName("quickkey");
-		
-		if(fileNames.getLength() != quickKeys.getLength())
-			throw new Exception("Mismatch between filenames/keys:" + fileNames.getLength() + " / " + quickKeys.getLength());
-		
 		Map<String, String> keyNameMap = new HashMap<String, String>();
-		
-		for(int i=0;i<fileNames.getLength();i++)
+
+		int chunk = 1;
+		boolean reading = true;
+		while(reading)
 		{
-			keyNameMap.put(fileNames.item(i).getTextContent(), quickKeys.item(i).getTextContent());			
+			String targetURL = HTTP_MEDIAFIRE_BASE_API + "folder/get_content.php?session_token=" + SessionToken + "&content_type=files&chunk=" + chunk;
+	
+			//send get request, and parse file entries
+			Document XMLDoc = httpGet(targetURL);
+			NodeList fileNames = XMLDoc.getElementsByTagName("filename");
+			NodeList quickKeys = XMLDoc.getElementsByTagName("quickkey");
+			
+			if(fileNames.getLength() != quickKeys.getLength())
+				throw new Exception("Mismatch between filenames/keys:" + fileNames.getLength() + " / " + quickKeys.getLength());
+			
+			
+			for(int i=0;i<fileNames.getLength();i++)
+			{
+				keyNameMap.put(fileNames.item(i).getTextContent(), quickKeys.item(i).getTextContent());			
+			}
+			
+			//stop running when there are no more files returned
+			if(fileNames.getLength() == 0)
+				reading = false;
+			chunk++;
 		}
 		
 		return keyNameMap;
