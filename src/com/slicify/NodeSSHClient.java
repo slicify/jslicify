@@ -23,7 +23,7 @@ public class NodeSSHClient {
 	private PrintStream Print = System.out;
 	
 	public static final String SERVER = "www.slicify.com";
-	public static final String PROMPT = "slicify@ubuntu:~";
+	public static final String PROMPT = "slicify@slicify:~";
 	
 	public void setOutputStream(OutputStream out)
 	{
@@ -94,6 +94,12 @@ public class NodeSSHClient {
     	//return buffer
     	return buffer.toString();
 	}
+	
+	public String sendRaw(String characters) throws IOException
+	{
+		return send(characters, null, false);
+	}
+	
 	
 	/**
 	 * Send a string to the shell. This will also wait for the default shell prompt to be echoed back before returning.
