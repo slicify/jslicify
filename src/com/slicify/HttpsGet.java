@@ -1,6 +1,5 @@
 package com.slicify;
 
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
@@ -13,15 +12,8 @@ import net.schmizz.sshj.common.Base64;
 import org.w3c.dom.Document;
 import org.w3c.dom.NodeList;
 
-/**
- * This class helps wrap some of the basic HTTP POST access that is required to use the Slicify Web Services framework.
- * Most users wont need this - just use SlicifyNode directly.
- * 
- * @author slicify
- *
- */
-public class HttpsPost {
-	
+public class HttpsGet {
+
 	public Object Result;
 	public boolean ParseOnQuery = false;
 	public String ServiceURL = null;
@@ -30,7 +22,7 @@ public class HttpsPost {
 	
 	public Document XMLDoc = null;
 
-	public HttpsPost(String serviceUrl) {
+	public HttpsGet(String serviceUrl) {
 		ServiceURL = serviceUrl;
 	}
 
@@ -59,12 +51,11 @@ public class HttpsPost {
 			if(!ServiceURL.startsWith("https://"))
 				throw new IllegalArgumentException("Can only be used with https connections - otherwise password is sent plain text");
 			
-			url = new URL(targetURL);
+			url = new URL(targetURL + "?" + urlParameters);
+			
 			connection = (HttpURLConnection) url.openConnection();
-			connection.setRequestMethod("POST");
-			connection.setRequestProperty("Content-Type","application/x-www-form-urlencoded");
-			connection.setRequestProperty("Content-Length","" + Integer.toString(urlParameters.getBytes().length));
-			connection.setRequestProperty("Content-Language", "en-US");
+			connection.setRequestMethod("GET");
+			
 			connection.setUseCaches(false);
 			connection.setDoInput(true);
 			connection.setDoOutput(true);
@@ -72,13 +63,9 @@ public class HttpsPost {
 			//add basic authentication header			
 			String encoded = Base64.encodeBytes((Username+":"+Password).getBytes()); 
 			connection.setRequestProperty("Authorization", "Basic "+encoded);
+			
+			connection.connect();
 	 
-			// Send request
-			DataOutputStream wr = new DataOutputStream(connection.getOutputStream());
-			wr.writeBytes(urlParameters);
-			wr.flush();
-			wr.close();
-
 			//check HTTP response code
 			int response = connection.getResponseCode();
 			if(response != 200)
@@ -118,6 +105,4 @@ public class HttpsPost {
 		
 		return replyFields.item(index).getTextContent();
 	}
-	
-
 }

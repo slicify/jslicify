@@ -54,12 +54,13 @@ public class SlicifyNodeSSHTest {
 	private void bookNode() throws Exception {
 
 		// Book a machine - you can change the values here to specify the particular criteria you want
-		int minCores = 1;      //include machines with any number of cores
-		int minRam = 1;        //include machines with any amount of RAM
-		double maxPrice = 1.0; //include machines < $1 per hour
-		int bits = 64;         //64-bit machines only
+		int minCores = 1;       //include machines with any number of cores
+		int minRam = 1;         //include machines with any amount of RAM
+		double maxPrice = 0.01; //only include machines at $0.01 per hour
+		int bits = 64;          //64-bit machines only
+		int ecu = 10;		    //minimum benchmark
 		
-		bookingID = node.bookNode(minCores, minRam, maxPrice, bits);
+		bookingID = node.bookNode(minCores, minRam, maxPrice, bits, ecu);
 		
 		// Check result
 		if(bookingID == -1)
@@ -104,16 +105,16 @@ public class SlicifyNodeSSHTest {
 		NodeSSHClient sshClient = new NodeSSHClient();
 		sshClient.connect(username, bookingOTP);
 		
-		String pwdResult = sshClient.send("pwd");
+		String pwdResult = sshClient.send("pwd", true);
 		assertTrue(pwdResult.contains("/home/slicify"));
 		
-		String llResult = sshClient.send("ls -l");
+		String llResult = sshClient.send("ls -l", true);
 		assertTrue(llResult.contains("total 0"));
 		
-		String wgetResult = sshClient.send("wget www.google.com");
+		String wgetResult = sshClient.send("tsocks wget www.google.com", true);
 		assertTrue(wgetResult.contains("`index.html' saved"));
 		
-		String catResult = sshClient.send("cat index.html");
+		String catResult = sshClient.send("cat index.html", true);
 		assertTrue(catResult.contains("</html>"));
 		
 		sshClient.disconnect();				

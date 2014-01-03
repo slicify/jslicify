@@ -21,9 +21,27 @@ public class NodeSSHClient {
 	private Session session = null; 
 	private Shell shell = null;
 	private PrintStream Print = System.out;
+	private boolean Logging = false;
 	
 	public static final String SERVER = "www.slicify.com";
 	public static final String PROMPT = "slicify@slicify:~";
+
+	public NodeSSHClient() {
+	}
+
+	public NodeSSHClient(boolean logging) {
+		Logging = logging;
+	}
+
+	public boolean isConnected() {
+		
+		return (ssh.isConnected() && session.isOpen() && shell.isOpen());
+	}
+
+	public void setConsoleLogging(boolean logging)
+	{
+		Logging = logging;
+	}
 	
 	public void setOutputStream(OutputStream out)
 	{
@@ -63,41 +81,62 @@ public class NodeSSHClient {
 	 */
 	public String expectPrompt() throws IOException
 	{
-	    return expectLiteral(PROMPT);
+	    return expectPrompt(false);
 	}
 	
 	/**
-	 * Wait for the specified literal text to be sent back from the server (regex not currently supported)
-	 * @param text
+	 * Wait for the default prompt to be sent back from the server.
 	 * @return
 	 * @throws IOException
 	 */
-	public String expectLiteral(String text) throws IOException
+	public String expectPrompt(boolean buffer) throws IOException
+	{
+	    return expectLiteral(PROMPT, buffer);
+	}
+
+	/**
+	 * Wait for the specified literal text to be sent back from the server (regex not currently supported)
+	 * @param text
+	 * @param buffer
+	 * @return
+	 * @throws IOException
+	 */
+	public String expectLiteral(String text, boolean buffer) throws IOException
 	{
 		//buffer the output until we find the passed literal string
-    	StringBuffer buffer = new StringBuffer();
+    	StringBuffer sb = new StringBuffer();
+    	
+    	int foundPos = 0;
     	boolean waiting = true;
     	while(waiting)
     	{
     		//read next char from input stream (blocking call)
     		char nextChar = (char) shell.getInputStream().read();
-    		buffer.append(nextChar);
-    		Print.print(Character.toString(nextChar));
-    		
-    		//wait for prompt
-    		if(buffer.lastIndexOf(text) > 1)
+    		if(buffer)
+    			sb.append(nextChar);
+
+			//check to see if this is the right string
+    		if(nextChar == text.charAt(foundPos))
     		{
-    			waiting = false;
-    		}
+    			foundPos++;
+        		if(foundPos >= text.length())
+        			waiting = false;
+    		}    		
+    		else
+    			foundPos = 0;
+    		
+    		//log to console
+    		if(Logging)
+    			Print.print(Character.toString(nextChar));    		
     	}
     	
     	//return buffer
-    	return buffer.toString();
+    	return sb.toString();
 	}
 	
-	public String sendRaw(String characters) throws IOException
+	public void sendRaw(String characters) throws IOException
 	{
-		return send(characters, null, false);
+		send(characters, null, false, false);
 	}
 	
 	
@@ -107,11 +146,22 @@ public class NodeSSHClient {
 	 * @return
 	 * @throws IOException
 	 */
-	public String send(String shellCommand) throws IOException
+	public void send(String shellCommand) throws IOException
 	{
-		return send(shellCommand, PROMPT);
+		send(shellCommand, PROMPT, false, false);
     }
 	
+	/**
+	 * Send a string to the shell. This will also wait for the default shell prompt to be echoed back before returning.
+	 * @param shellCommand
+	 * @return
+	 * @throws IOException
+	 */
+	public String send(String shellCommand, boolean buffer) throws IOException
+	{
+		return send(shellCommand, PROMPT, false, buffer);
+    }
+
 	/**
 	 * Send a string to the shell. This will also wait until the specified literal expression is seen in the reply from the
 	 * terminal before returning.
@@ -123,7 +173,7 @@ public class NodeSSHClient {
 	public String send(String shellCommand, String expectLiteral) throws IOException
 	{
 		//default to always send \n at end of line
-    	return send(shellCommand, expectLiteral, false);
+    	return send(shellCommand, expectLiteral, false, false);
     }
 
 	/**
@@ -133,10 +183,11 @@ public class NodeSSHClient {
 	 * @param shellCommand
 	 * @param expectLiteral
 	 * @param noCRLF
+	 * @param buffer
 	 * @return
 	 * @throws IOException
 	 */
-	public String send(String shellCommand, String expectLiteral, boolean noCRLF) throws IOException
+	public String send(String shellCommand, String expectLiteral, boolean noCRLF, boolean buffer) throws IOException
 	{
 		String result = null;
 		
@@ -149,7 +200,7 @@ public class NodeSSHClient {
     	
     	//wait on the expected response
     	if(expectLiteral != null && expectLiteral.length() > 0)
-    		result = expectLiteral(expectLiteral);
+    		result = expectLiteral(expectLiteral, buffer);
     	
     	return result;
     }

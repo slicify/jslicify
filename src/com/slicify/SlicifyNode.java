@@ -23,7 +23,7 @@ public class SlicifyNode {
 	private static final String SERVER = "secure.slicify.com";
 	private static final String SERVICEURL = "https://" + SERVER + "/Service/BookingService.asmx";
 	
-	private HttpsPost HttpsPost = new HttpsPost(SERVICEURL);
+	private HttpsGet HttpsGet = new HttpsGet(SERVICEURL);
 
 	/**
 	 * Set your www.slicify.com username. Must be set before any methods are called.
@@ -31,7 +31,7 @@ public class SlicifyNode {
 	 */
 	public void setUsername(String username)
 	{
-		HttpsPost.Username = username;
+		HttpsGet.Username = username;
 	}
 
 	/**
@@ -40,7 +40,7 @@ public class SlicifyNode {
 	 */
 	public void setPassword(String password)
 	{
-		HttpsPost.Password = password;
+		HttpsGet.Password = password;
 	}
 	
 	/**
@@ -55,7 +55,7 @@ public class SlicifyNode {
 	 * @throws ParserConfigurationException
 	 * @throws SAXException
 	 */
-	public int bookNode(int minCores, int minRam, double maxPrice, int bits) throws Exception
+	public int bookNode(int minCores, int minRam, double maxPrice, int bits, int minEcu) throws Exception
 	{
 		String targetOP = "BookMachine";
 		
@@ -67,18 +67,21 @@ public class SlicifyNode {
 			throw new IllegalArgumentException("Maximum price must be between 0 and 2.0 ($/hour)");
 		if(bits != 32 && bits != 64)
 			throw new IllegalArgumentException("Bits must be set to either 32 or 64");
+		if(minEcu < 1)
+			throw new IllegalArgumentException("Minimum ECU must be greater than 1");
 		
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("minCores", minCores);
 		params.put("minRam", minRam);
 		params.put("maxPrice", maxPrice);
 		params.put("bits", bits);
+		params.put("minECU", minEcu);
 		String urlParameters = createUrlParameters(params);
 
 		//need to parse the first field, which will be an integer booking reference
-		HttpsPost.ParseOnQuery = true;
-		HttpsPost.query(targetOP, urlParameters);		
-		String result = HttpsPost.parseReply(0);			
+		HttpsGet.ParseOnQuery = true;
+		HttpsGet.query(targetOP, urlParameters);		
+		String result = HttpsGet.parseReply(0);			
 		return Integer.parseInt(result);		
 	}
 	
@@ -93,9 +96,9 @@ public class SlicifyNode {
 		List<Integer> result = new ArrayList<Integer>();
 		
 		//get the XML back from the web service
-		HttpsPost.ParseOnQuery = true;
-		HttpsPost.query("GetActiveBookingIDs", "");
-		Document document = HttpsPost.XMLDoc;
+		HttpsGet.ParseOnQuery = true;
+		HttpsGet.query("GetActiveBookingIDs", "");
+		Document document = HttpsGet.XMLDoc;
 		
 		//extract list of booking IDs
 		NodeList bookingFields = document.getElementsByTagName("int");
@@ -161,6 +164,47 @@ public class SlicifyNode {
 	}
 
 	/**
+	 * Get the number of hardware cores assigned to the virtual machine for this booking.
+	 * @param bookingID
+	 * @return
+	 * @throws IOException
+	 * @throws ParserConfigurationException
+	 * @throws SAXException
+	 */
+	public int getCoreCount(int bookingID) throws Exception
+	{
+		String sCores = runBookingOperation("GetCoreCount", bookingID, true);
+		return Integer.parseInt(sCores);
+	}
+
+	/**
+	 * Get the approximate ECU benchmark for the machine with this booking ID.
+	 * @param bookingID
+	 * @return
+	 * @throws IOException
+	 * @throws ParserConfigurationException
+	 * @throws SAXException
+	 */
+	public int getECU(int bookingID) throws Exception
+	{
+		String sECU = runBookingOperation("GetECU", bookingID, true);
+		return Integer.parseInt(sECU);
+	}
+
+	/**
+	 * Get a textual description of the reason that this booking was closed.
+	 * @param bookingID
+	 * @return
+	 * @throws IOException
+	 * @throws ParserConfigurationException
+	 * @throws SAXException
+	 */
+	public String getCloseReason(int bookingID) throws Exception
+	{
+		return runBookingOperation("GetCloseReason", bookingID, true);
+	}
+
+	/**
 	 * Cancel the booking.
 	 * @param bookingID
 	 * @throws IOException
@@ -187,7 +231,6 @@ public class SlicifyNode {
 			//check the status every 10 seconds
 			Thread.sleep(10000);					
 			status = getBookingStatus(bookingID);
-			System.out.println("Status:" + status);					
 		}
 	}
 		
@@ -203,10 +246,10 @@ public class SlicifyNode {
 		String urlParameters = createUrlParameters(params);
 
 		//need to parse the first field, which will be an integer booking reference
-		HttpsPost.ParseOnQuery = parse;
-		HttpsPost.query(targetOP, urlParameters);
+		HttpsGet.ParseOnQuery = parse;
+		HttpsGet.query(targetOP, urlParameters);
 		if(parse)
-			return HttpsPost.parseReply(0);
+			return HttpsGet.parseReply(0);
 		else
 			return null;
 	}
