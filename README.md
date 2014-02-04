@@ -17,7 +17,7 @@ This is the basic wrapper for the Slicify Web Services API. Example use:
     node.setPassword(password);
 
     // Book a node - you can change the values here to specify the particular criteria you want
-    int bookingID = node.bookNode(1, 1, 1.0, 64);
+    int bookingID = node.bookNode(1, 1, 0.01, 64, 10);
 		
     // Check result
     if(bookingID == -1)
