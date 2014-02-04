@@ -28,6 +28,7 @@ public class SlicifyNodeSSHTest {
 	private static String password = "slicify-password";
 	
 	private static SlicifyNode node;
+	private static int bidID = -1;
 	private static int bookingID = -1;
 	private String bookingOTP;
 
@@ -45,29 +46,42 @@ public class SlicifyNodeSSHTest {
 	@Test
 	public void runAll() throws Exception {
 	
-		bookNode();
+		addBid();
+		getBooking();
 		getStatus();
 		getPassword();
-		sshTest();
+		//sshTest();
 	}
 	
-	private void bookNode() throws Exception {
+	private void addBid() throws Exception {
 
-		// Book a machine - you can change the values here to specify the particular criteria you want
-		int minCores = 1;       //include machines with any number of cores
+		// Create a new bid to book a machine - you can change the values here to specify the particular criteria you want
+		String country = "";	//can specific a particular location if required
 		int minRam = 1;         //include machines with any amount of RAM
-		double maxPrice = 0.01; //only include machines at $0.01 per hour
+		double maxPrice = 0.03; //only pay up to $0.03 per hour. If a machine is too expensive, the booking will be cancelled.
 		int bits = 64;          //64-bit machines only
-		int ecu = 10;		    //minimum benchmark
+		int ecu = 5;		    //minimum benchmark
 		
-		bookingID = node.bookNode(minCores, minRam, maxPrice, bits, ecu);
+		bidID = node.addBid(minRam, maxPrice, bits, ecu, country);
 		
 		// Check result
-		if(bookingID == -1)
+		if(bidID < 0)
 			fail("Error thrown from booking call");
-		else if(bookingID == 0)
-			fail("No machines available - try increasing the price, or decreasing the min cores/ram");
 
+		System.out.println("BidID:" + bidID);
+	}
+
+	private void getBooking() throws Exception {
+		
+		//check if our bid was successful
+		bookingID = node.getBookingID(bidID);
+
+		//check result
+		if(bookingID == -2)
+			fail("getBookingID returned an error");
+		else if(bookingID == -1)
+			fail("No machines available - try increasing the price, or decreasing the requirements");
+		
 		System.out.println("BookingID:" + bookingID);
 	}
 	
@@ -122,14 +136,15 @@ public class SlicifyNodeSSHTest {
 	
 	@AfterClass
 	public static void cancelBooking() {
-		if(node != null && bookingID > 0) 
+		if(node != null && bidID > 0) 
 		{
 			// Cancel booking again
 			try {
-				node.cancelBooking(bookingID);
-				System.out.println("Booking cancelled, session terminating");
+				node.deleteBid(bidID);
+				System.out.println("Bid cancelled, booking terminating automatically");
 				
-				assertEquals("Booking not closed", "Closed", node.getBookingStatus(bookingID));
+				if(bookingID > 0)
+					assertEquals("Booking not closed", "Closed", node.getBookingStatus(bookingID));
 				
 			} catch (Exception e) {
 				fail("Booking may not be cancelled - check from www.slicify.com web site, and cancel manually if needed");
