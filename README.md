@@ -16,13 +16,26 @@ This is the basic wrapper for the Slicify Web Services API. Example use:
     node.setUsername(username);
     node.setPassword(password);
 
-    // Book a node - you can change the values here to specify the particular criteria you want
-    int bookingID = node.bookNode(1, 1, 0.01, 64, 10);
+	// Create a new bid to book a machine - you can change the values here to specify the particular criteria you want
+	String country = "";	//can specific a particular location if required
+	int minRam = 1;         //include machines with any amount of RAM
+	double maxPrice = 0.03; //only pay up to $0.03 per hour. If a machine is too expensive, the booking will be cancelled.
+	int bits = 64;          //64-bit machines only
+	int ecu = 5;		    //minimum benchmark
+	
+	bidID = node.addBid(minRam, maxPrice, bits, ecu, country);
+	
+	// Check result
+	if(bidID < 0)
+		fail("Error thrown from booking call");
 		
+	// Get any active booking
+	int bookingID = node.getBookingID(bidID);
+	
     // Check result
-    if(bookingID == -1)
+    if(bookingID == -2)
 	    throw new Exception("Error thrown from booking call");
-    else if(bookingID == 0)
+    else if(bookingID == -1)
 	    throw new Exception("No machines available");
 
     //Wait for node to be provisioned and launched
@@ -33,8 +46,8 @@ This is the basic wrapper for the Slicify Web Services API. Example use:
 
     //... run some commands over SSH - see below
 
-    //tidy up when finished
-    node.cancelBooking(bookingID);
+    //tidy up when finished (delete bid and associated booking)
+	node.deleteBid(bidID);
 
 
 NodeSSHClient.java
