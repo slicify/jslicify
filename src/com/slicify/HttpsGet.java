@@ -1,8 +1,10 @@
 package com.slicify;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Scanner;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -105,4 +107,15 @@ public class HttpsGet {
 		
 		return replyFields.item(index).getTextContent();
 	}
+	
+	private String convertStreamToString(InputStream is) {
+		Scanner s1 = new Scanner(is);
+	    Scanner s = s1.useDelimiter("\\A");
+	    String result = s.hasNext() ? s.next() : "";
+	    s.close();
+	    s1.close();
+	    
+	    return result;
+	}
+
 }

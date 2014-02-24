@@ -34,8 +34,10 @@ public class NodeSSHClient {
 	}
 
 	public boolean isConnected() {
-		
-		return (ssh.isConnected() && session.isOpen() && shell.isOpen());
+		if(ssh == null || shell == null)
+			return false;
+		else
+			return (ssh.isConnected() && session.isOpen() && shell.isOpen());
 	}
 
 	public void setConsoleLogging(boolean logging)
@@ -100,6 +102,7 @@ public class NodeSSHClient {
 	 * @param buffer
 	 * @return
 	 * @throws IOException
+	 * @throws InterruptedException 
 	 */
 	public String expectLiteral(String text, boolean buffer) throws IOException
 	{
@@ -108,27 +111,48 @@ public class NodeSSHClient {
     	
     	int foundPos = 0;
     	boolean waiting = true;
-    	while(waiting)
+    	while(waiting && ssh.isConnected())
     	{
-    		//read next char from input stream (blocking call)
-    		char nextChar = (char) shell.getInputStream().read();
-    		if(buffer)
-    			sb.append(nextChar);
-
-			//check to see if this is the right string
-    		if(nextChar == text.charAt(foundPos))
+    		//check if there is any pending data - TODO change this to use NIO
+    		if(shell.getInputStream().available() <= 0)
     		{
-    			foundPos++;
-        		if(foundPos >= text.length())
-        			waiting = false;
-    		}    		
+    			try {
+					Thread.sleep(100);
+				} catch (Error | Exception e) {
+					
+					//disconnect on exception
+					//this can be thrown by the SSH library on disconnect
+					System.out.println("Wait exception");
+					if(ssh.isConnected())
+						disconnect();
+					throw new IOException("Exception in thread wait");
+				}
+    		}
     		else
-    			foundPos = 0;
-    		
-    		//log to console
-    		if(Logging)
-    			Print.print(Character.toString(nextChar));    		
+    		{
+        		//read next char from input stream (blocking call)
+	    		char nextChar = (char) shell.getInputStream().read();
+	    		if(buffer)
+	    			sb.append(nextChar);
+	
+				//check to see if this is the right string
+	    		if(nextChar == text.charAt(foundPos))
+	    		{
+	    			foundPos++;
+	        		if(foundPos >= text.length())
+	        			waiting = false;
+	    		}    		
+	    		else
+	    			foundPos = 0;
+	    		
+	    		//log to console
+	    		if(Logging)
+	    			Print.print(Character.toString(nextChar));
+    		}
     	}
+    	
+    	if(!ssh.isConnected())
+    		throw new IOException("SSH no longer connected");
     	
     	//return buffer
     	return sb.toString();
@@ -211,7 +235,8 @@ public class NodeSSHClient {
 	 */
 	public void disconnect() throws IOException
 	{
-        session.close();
+		if(session != null)
+			session.close();
 	    ssh.disconnect();
 	}
 }

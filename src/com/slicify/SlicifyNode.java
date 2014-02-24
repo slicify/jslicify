@@ -116,6 +116,39 @@ public class SlicifyNode {
 	}
 
 	/**
+	 * Return a list of all bids that are currently active for this user
+	 * 
+	 * @return List of all currently active bid IDs.
+	 * @throws Exception 
+	 */
+	public List<Integer> getActiveBidIDs() throws Exception
+	{
+		//create result container
+		List<Integer> result = new ArrayList<Integer>();
+		
+		//get the XML back from the web service
+		HttpsGet.ParseOnQuery = true;
+		HttpsGet.query("BidGetAllInfo", "");
+		Document document = HttpsGet.XMLDoc;
+		
+		//extract list of booking IDs
+		NodeList bidIDs = document.getElementsByTagName("BidID");
+		NodeList activeFlags = document.getElementsByTagName("Active");
+		
+		for(int i=0; i<bidIDs.getLength(); i++)
+		{
+			String sbidID = bidIDs.item(i).getTextContent();
+			String sactive = activeFlags.item(i).getTextContent();
+			if(sactive.equalsIgnoreCase("true"))
+			{
+				int bidID = Integer.parseInt(sbidID);
+				result.add(bidID);
+			}
+		}
+		
+		return result;
+	}
+	/**
 	 * Return a list of all bookings that are currently active for this user
 	 * 
 	 * @return List of all currently active booking IDs.
@@ -252,7 +285,7 @@ public class SlicifyNode {
 		{
 			//check it hasnt faulted
 			if(status.equals("Closed"))
-				throw new Exception("Machine wasnt able to be booked succesfully");
+				throw new Exception("Machine wasnt able to be booked succesfully:" + bookingID + " " + status);
 			
 			//check the status every 10 seconds
 			Thread.sleep(10000);					
