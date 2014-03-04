@@ -65,7 +65,7 @@ public class HttpsGet {
 			//add basic authentication header			
 			String encoded = Base64.encodeBytes((Username+":"+Password).getBytes()); 
 			connection.setRequestProperty("Authorization", "Basic "+encoded);
-			
+			connection.setConnectTimeout(120000);
 			connection.connect();
 	 
 			//check HTTP response code
