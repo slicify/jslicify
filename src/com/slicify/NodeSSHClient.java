@@ -57,7 +57,12 @@ public class NodeSSHClient {
 	 * @return
 	 * @throws IOException
 	 */
-	public String connect(String username, String bookingPassword) throws IOException 
+	public String connect(String username, String bookingPassword) throws IOException
+	{
+		return connect(username, bookingPassword, 0);
+	}
+	
+	public String connect(String username, String bookingPassword, int timeoutms) throws IOException 
 	{
 		//validate host key
 		ssh.addHostKeyVerifier("e9:5d:51:34:ec:8d:96:6d:1f:70:94:a3:ad:ef:0e:09");
@@ -73,7 +78,7 @@ public class NodeSSHClient {
 	    shell = session.startShell();
 	    
 	    //wait for prompt
-	    return expectPrompt();
+	    return expectPrompt(true, timeoutms);
 	}
 
 	/**
@@ -93,25 +98,33 @@ public class NodeSSHClient {
 	 */
 	public String expectPrompt(boolean buffer) throws IOException
 	{
-	    return expectLiteral(PROMPT, buffer);
+	    return expectLiteral(PROMPT, buffer, 0);
+	}
+	public String expectPrompt(boolean buffer, int timeoutms) throws IOException
+	{
+	    return expectLiteral(PROMPT, buffer, timeoutms);
 	}
 
 	/**
 	 * Wait for the specified literal text to be sent back from the server (regex not currently supported)
 	 * @param text
 	 * @param buffer
+	 * @param timeoutms Timeout in milliseconds to wait for the expected string. If buffer is true and the call 
+	 * times out early, the method will return whatever data it has captured so far. Set to 0 for infinite timeout.
+	 * 
 	 * @return
 	 * @throws IOException
 	 * @throws InterruptedException 
 	 */
-	public String expectLiteral(String text, boolean buffer) throws IOException
+	public String expectLiteral(String text, boolean buffer, int timeoutms) throws IOException
 	{
 		//buffer the output until we find the passed literal string
     	StringBuffer sb = new StringBuffer();
     	
     	int foundPos = 0;
     	boolean waiting = true;
-    	while(waiting && ssh.isConnected())
+    	long startTime = System.currentTimeMillis();
+    	while(waiting && ssh.isConnected() && (timeoutms <= 0 || (System.currentTimeMillis() - startTime) < timeoutms))
     	{
     		//check if there is any pending data - TODO change this to use NIO
     		if(shell.getInputStream().available() <= 0)
@@ -213,6 +226,23 @@ public class NodeSSHClient {
 	 */
 	public String send(String shellCommand, String expectLiteral, boolean noCRLF, boolean buffer) throws IOException
 	{
+		return send(shellCommand, expectLiteral, noCRLF, buffer, 0);
+	}
+	
+	/**
+	 * Send a string to the shell. This will also wait until the specified literal expression is seen in the reply from the
+	 * terminal before returning. Setting noCRLF=true will also prevent the method from automatically inserting a carriage
+	 * return after the command. 
+	 * @param shellCommand
+	 * @param expectLiteral
+	 * @param noCRLF
+	 * @param buffer
+	 * @param timeoutms
+	 * @return
+	 * @throws IOException
+	 */
+	public String send(String shellCommand, String expectLiteral, boolean noCRLF, boolean buffer, int timeoutms) throws IOException
+	{
 		String result = null;
 		
 		//write data out to stream
@@ -224,7 +254,7 @@ public class NodeSSHClient {
     	
     	//wait on the expected response
     	if(expectLiteral != null && expectLiteral.length() > 0)
-    		result = expectLiteral(expectLiteral, buffer);
+    		result = expectLiteral(expectLiteral, buffer, timeoutms);
     	
     	return result;
     }
