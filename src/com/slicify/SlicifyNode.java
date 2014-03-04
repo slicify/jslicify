@@ -44,7 +44,13 @@ public class SlicifyNode {
 	{
 		HttpsGet.Password = password;
 	}
-	
+
+	public double getAccountBalance() throws Exception
+	{
+		String bal = runOperation("AccountBalance", null, true);
+		return Double.parseDouble(bal);
+	}
+
 	/**
 	 * Book a machine. Pass in the specifications for the type of machine you require. A unique reference number
 	 * (bid ID) for each bid is returned. In addition, if a machine is available, it will be booked immediately.
@@ -188,7 +194,18 @@ public class SlicifyNode {
 	{
 		return runBookingOperation("BookingGetStatus", bookingID, true);
 	}
-	
+
+	/**
+	 * Get the country where the machine in the specified booking resides. 
+	 * @param bookingID
+	 * @return
+	 * @throws Exception
+	 */
+	public String getBookingCountry(int bookingID) throws Exception
+	{
+		return runBookingOperation("BookingGetCountry", bookingID, true);
+	}
+
 	/**
 	 * Get the SSH login password to access this machine.
 	 * 
@@ -247,6 +264,18 @@ public class SlicifyNode {
 	}
 
 	/**
+	 * Get the associated Bid ID for this booking
+	 * 
+	 * @param bookingID
+	 * @return
+	 * @throws Exception 
+	 */
+	public int getBookingBidID(int bookingID) throws Exception {
+		String sBidID = runBookingOperation("BookingGetBidID", bookingID, true);
+		return Integer.parseInt(sBidID);
+	}
+
+	/**
 	 * Get the approximate ECU benchmark for the machine with this booking ID.
 	 * 
 	 * @param bookingID
@@ -294,7 +323,6 @@ public class SlicifyNode {
 	}
 		
 	
-	
 	private String runBookingOperation(String targetOP, int bookingID, boolean parse) throws Exception
 	{		
 		if(bookingID < 0)
@@ -302,15 +330,8 @@ public class SlicifyNode {
 		
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("bookingID", bookingID);
-		String urlParameters = createUrlParameters(params);
-
-		//need to parse the first field, which be the result of the operation
-		HttpsGet.ParseOnQuery = parse;
-		HttpsGet.query(targetOP, urlParameters);
-		if(parse)
-			return HttpsGet.parseReply(0);
-		else
-			return null;
+		
+		return runOperation(targetOP, params, parse);
 	}
 
 	private String runBidOperation(String targetOP, int bidID, boolean parse) throws Exception
@@ -320,6 +341,12 @@ public class SlicifyNode {
 		
 		Map<String, Object> params = new HashMap<String, Object>();
 		params.put("bidID", bidID);
+		
+		return runOperation(targetOP, params, parse);
+	}
+
+	private String runOperation(String targetOP, Map<String, Object> params, boolean parse) throws Exception
+	{		
 		String urlParameters = createUrlParameters(params);
 
 		//need to parse the first field, which be the result of the operation
@@ -333,6 +360,9 @@ public class SlicifyNode {
 
 	private String createUrlParameters(Map<String, Object> params)
 	{
+		if(params == null || params.size() == 0)
+			return "";
+		
 		StringBuilder sb = new StringBuilder();
 		for(Entry<String, Object> param : params.entrySet())
 		{
